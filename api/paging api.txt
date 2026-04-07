@@ -1,0 +1,36 @@
+
+// GET: api/JobOrders
+[HttpGet]
+[Authorize(Roles = "Administrator, AndonAdmin, AndonUsers, CheckSheetUsers, CheckSheetAdmin, ClaimReportUsers, ClaimReportAdmin, CheckListAdmin, CheckListUsers, SpkAdmin, SpkUsers")]
+public async Task<ActionResult<PagedResult<JobOrder>>> GetJobOrders(
+    [FromQuery] int page = 1, 
+    [FromQuery] int pageSize = 20)
+{
+    var query = _context.JobOrders.AsQueryable();
+    
+    var totalCount = await query.CountAsync();
+    var items = await query
+        .OrderByDescending(jo => jo.JoId)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+    
+    return Ok(new PagedResult<JobOrder>
+    {
+        Items = items,
+        TotalCount = totalCount,
+        Page = page,
+        PageSize = pageSize,
+        TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+    });
+}
+
+// Add this class to support pagination
+public class PagedResult<T>
+{
+    public List<T> Items { get; set; }
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; set; }
+}

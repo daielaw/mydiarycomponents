@@ -1,0 +1,15 @@
+val errorBody = httpResponse.bodyAsText()
+
+                val errorMessage = try {
+                    Json.decodeFromString<MasterCheckListItemApiError>(errorBody).message
+                } catch (e: Exception) {
+                    "Gagal menyimpan Master Checklist"
+                }
+
+                return Result.failure(Exception(errorMessage))
+
+
+@Serializable
+data class MasterCheckListItemApiError(
+    val message: String
+)
