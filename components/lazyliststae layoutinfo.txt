@@ -1,0 +1,22 @@
+val shouldLoadNext = remember {
+    derivedStateOf {
+        val layout = listState.layoutInfo
+
+        val lastVisibleItem = layout.visibleItemsInfo.lastOrNull()
+            ?: return@derivedStateOf false
+
+        lastVisibleItem.index >= layout.totalItemsCount - 2
+    }
+}
+
+
+LaunchedEffect(shouldLoadNext.value) {
+    if (shouldLoadNext.value) {
+        viewModel.loadNextPage()
+    }
+}
+
+fun loadNextPage() {
+    if (state.isLoading || state.endReached) return
+    // hit API
+}

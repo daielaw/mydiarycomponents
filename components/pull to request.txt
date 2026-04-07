@@ -1,0 +1,33 @@
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PullToRefreshScreen() {
+    // 1. State to track if refreshing is in progress
+    var isRefreshing by remember { mutableStateOf(false) }
+    val state = rememberPullToRefreshState()
+    val scope = rememberCoroutineScope()
+
+    // 2. The Container Component
+    PullToRefreshBox(
+        state = state,
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                // Simulate a network call or data fetch
+                delay(2000)
+                isRefreshing = false
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // 3. Your scrollable content (LazyColumn, Column with verticalScroll, etc.)
+        LazyColumn(Modifier.fillMaxSize()) {
+            items(20) { index ->
+                ListItem(
+                    headlineContent = { Text("Item ${index + 1}") },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        }
+    }
+}

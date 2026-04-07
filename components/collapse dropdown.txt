@@ -1,0 +1,128 @@
+@Composable
+fun GroupOrderChecklistCard(
+    item: OrderChecklistGroupDto,
+    navigateToOrderCheckListDetail: (id: Long?, mode: String?, orderId: Long?, jobId: Long?) -> Unit,
+    onJobClick: (OrderChecklistJobDto) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val totalJobs = item.plants.sumOf { it.jobs.size }
+
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 90f else 0f,
+        animationSpec = tween(300),
+        label = "expandRotation"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(2.dp),
+        onClick = { if (totalJobs > 0) expanded = !expanded }
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // 🔹 HEADER (ORDER INFO)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.orderNum ?: "No Order",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text(
+                        text = "${item.description}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Text(
+                        text = "Model: ${item.modelIdSimlaksana ?: " - "} - ${item.modelName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Text(
+                        text = "Total Jobs: $totalJobs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                /*if (totalJobs > 0) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.rotate(rotation)
+                    )
+                }*/
+            }
+
+            // 🔹 CONTENT AREA
+            AnimatedVisibility(
+                visible = expanded || totalJobs <= 1, // Tetap muncul jika cuma ada 1 job total
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    // 🔹 ITERASI PER PLANT
+                    item.plants.forEachIndexed { index, plant ->
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // Label Nama Plant
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(bottom = 8.dp, top = if (index > 0) 8.dp else 0.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Plant: ${plant.plantName ?: "Unknown"}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // 🔹 ITERASI JOBS Order DALAM PLANT TERSEBUT
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(start = 8.dp) // Indentasi agar terlihat hirarkis
+                            ) {
+                                plant.jobs.forEach { job ->
+                                    OrderChecklistJobRow(
+                                        job = job,
+                                        onClick = { onJobClick(job) }
+                                    )
+                                }
+                            }
+
+                            // Divider antar plant (kecuali plant terakhir)
+                            if (index < item.plants.size - 1) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
