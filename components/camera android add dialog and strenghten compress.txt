@@ -1,0 +1,530 @@
+package com.laksanabus.core.features.common.camera
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+actual fun CameraCapture(
+    onPhotoCaptured: (String) -> Unit,
+    onError: (String) -> Unit,
+    trigger: Boolean,
+    useCamera: Boolean
+) {
+    val context = LocalContext.current
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var debugMessage by remember { mutableStateOf<String?>(null) }
+    var shouldLaunchCamera by remember { mutableStateOf(false) }
+    var shouldLaunchFilePicker by remember { mutableStateOf(false) }
+    // Track the absolute path of the photo file we create so we can compress it later
+    var photoFilePath by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    var loadingDialog by remember { mutableStateOf(false) }
+
+    // Permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            shouldLaunchCamera = true
+        } else {
+            debugMessage = "Camera permission denied"
+            onError("Camera permission denied")
+        }
+    }
+
+    // Camera launcher
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val currentUri = imageUri
+        if (success && currentUri != null) {
+            debugMessage = "Camera intent success: $currentUri"
+            val path = photoFilePath
+            if (path != null) {
+                scope.launch {
+                    loadingDialog = true
+                    try {
+                        val compressedResult = compressImageFileIfNeededExperimental(path, maxBytes = 100 * 1024L)
+                        if (compressedResult == null) {
+                            debugMessage = "Compression failed"
+                            onError("Failed to compress image")
+                        } else {
+                            val (finalPath, wasCompressed) = compressedResult
+                            if (wasCompressed) {
+                                debugMessage = "Image compressed to <=100KB: $finalPath"
+                            } else {
+                                debugMessage = "Image already <=100KB: $finalPath"
+                            }
+//                            val finalUri = if (finalPath == path) currentUri else Uri.fromFile(File(finalPath))
+                            val finalUri = if (finalPath == path) currentUri else FileProvider.getUriForFile(context, "${context.packageName}.provider", File(finalPath))
+                            onPhotoCaptured(finalUri.toString())
+                        }
+                    } finally {
+                        loadingDialog = false
+                    }
+                }
+            } else {
+                // Fallback: no path tracked, just return URI
+                onPhotoCaptured(currentUri.toString())
+            }
+        } else {
+            debugMessage = "Failed to capture photo"
+            onError("Failed to capture photo")
+        }
+        shouldLaunchCamera = false
+    }
+
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            loadingDialog = true
+            debugMessage = "File picker success: $uri"
+            scope.launch {
+                try {
+                    // Copy the selected URI to a temporary file and compress it
+                    val compressedResult = compressUriImage(context, uri, maxBytes = 100 * 1024L)
+                    if (compressedResult == null) {
+                        debugMessage = "Failed to process selected image"
+                        onError("Failed to process selected image")
+                    } else {
+                        val (finalPath, wasCompressed) = compressedResult
+                        if (wasCompressed) {
+                            debugMessage = "Selected image compressed to <=100KB: $finalPath"
+                        } else {
+                            debugMessage = "Selected image already <=100KB: $finalPath"
+                        }
+                        // Convert file path to FileProvider URI
+                        val finalUri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            File(finalPath)
+                        )
+                        onPhotoCaptured(finalUri.toString())
+                    }
+                } catch (e: Exception) {
+                    debugMessage = "Error processing selected image: ${e.message}"
+                    onError("Error processing selected image: ${e.message}")
+                } finally {
+                    loadingDialog = false
+                }
+            }
+        } else {
+            debugMessage = "No file selected"
+            onError("No file selected")
+        }
+        shouldLaunchFilePicker = false
+    }
+
+    // Launch camera or file picker if permission is granted and either trigger or shouldLaunch is true
+    LaunchedEffect(trigger, shouldLaunchCamera, shouldLaunchFilePicker) {
+        if (trigger || shouldLaunchCamera || shouldLaunchFilePicker) {
+            if (useCamera) {
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+                if ((trigger || shouldLaunchCamera) && hasPermission) {
+                    try {
+                        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                        val storageDir = File(context.cacheDir, "images")
+                        if (!storageDir.exists()) storageDir.mkdirs()
+                        val photoFile = File(storageDir, "JPEG_${timeStamp}.jpg")
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            photoFile
+                        )
+                        imageUri = uri
+                        photoFilePath = photoFile.absolutePath // Track for compression
+                        debugMessage = "Launching camera intent with URI: $uri"
+                        cameraLauncher.launch(uri)
+                    } catch (e: Exception) {
+                        debugMessage = "Error creating file/URI: ${e.message}"
+                        onError("Error creating file/URI: ${e.message}")
+                    }
+                    shouldLaunchCamera = false
+                } else if (trigger && !hasPermission) {
+                    debugMessage = "Requesting camera permission"
+                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            } else {
+                if (trigger || shouldLaunchFilePicker) {
+                    debugMessage = "Launching file picker"
+                    filePickerLauncher.launch("image/*")
+                    shouldLaunchFilePicker = false
+                }
+            }
+        }
+    }
+
+    debugMessage?.let { msg ->
+        LaunchedEffect(msg) {
+            Log.d("PlatformCameraCapture", msg)
+            debugMessage = null
+        }
+    }
+
+    if (loadingDialog){
+        LoadingDialog()
+    }
+}
+
+// Compresses image from a content URI by copying to cache and compressing.
+// Returns Pair(newPath, wasCompressed) or null on failure.
+private suspend fun compressUriImage(context: android.content.Context, uri: Uri, maxBytes: Long): Pair<String, Boolean>? = withContext(Dispatchers.IO) {
+    try {
+        // Copy URI content to a temporary file in cache
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val storageDir = File(context.cacheDir, "images")
+        if (!storageDir.exists()) storageDir.mkdirs()
+        val tempFile = File(storageDir, "PICKED_${timeStamp}.jpg")
+
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(tempFile).use { output ->
+                input.copyTo(output)
+            }
+        } ?: return@withContext null
+
+        // Now compress the temporary file using existing logic
+        return@withContext compressImageFileIfNeededExperimental(tempFile.absolutePath, maxBytes)
+    } catch (e: Exception) {
+        Log.e("PlatformCameraCapture", "Error processing URI image: ${e.message}")
+        null
+    }
+}
+
+// Compresses image file at path if it exceeds maxBytes.
+// Returns Pair(newPath, wasCompressed) or null on failure.
+private suspend fun compressImageFileIfNeeded(path: String, maxBytes: Long): Pair<String, Boolean>? = withContext(Dispatchers.IO) {
+    try {
+        val file = File(path)
+        if (!file.exists()) return@withContext null
+        if (file.length() <= maxBytes) return@withContext path to false
+
+        var bitmap = BitmapFactory.decodeFile(path) ?: return@withContext null
+
+        // Apply EXIF-aware rotation if needed
+        try {
+            val exif = ExifInterface(file.absolutePath)
+            val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            val rotationDegrees = when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            }
+            if (rotationDegrees != 0) {
+                val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+                val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                // recycle original to free memory
+                bitmap.recycle()
+                bitmap = rotated
+                // attempt to clear orientation so downstream consumers don't double-rotate
+                try {
+                    exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
+                    exif.saveAttributes()
+                } catch (_: Exception) {
+                    // non-fatal
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PlatformCameraCapture", "EXIF rotation read/rotation failed, continuing without rotation: ${e.message}")
+        }
+
+        // Iteratively reduce JPEG quality
+        var quality = 95
+        var compressedBytes: ByteArray
+        while (quality > 10) {
+            val baos = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, baos)
+            compressedBytes = baos.toByteArray()
+            if (compressedBytes.size.toLong() <= maxBytes) {
+                FileOutputStream(file).use { it.write(compressedBytes) }
+                return@withContext path to true
+            }
+            quality -= 5
+        }
+
+        // If still too large, scale down dimensions proportionally
+        val baosFull = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baosFull)
+        compressedBytes = baosFull.toByteArray()
+        if (compressedBytes.size.toLong() <= maxBytes) {
+            FileOutputStream(file).use { it.write(compressedBytes) }
+            return@withContext path to true
+        }
+
+        // Final attempt: scale bitmap based on ratio
+        val ratio = kotlin.math.sqrt(maxBytes.toDouble() / compressedBytes.size.toDouble())
+        if (ratio < 0.95) { // Only bother if meaningful reduction
+            val newWidth = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+            val newHeight = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+            bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+            var q = 85
+            while (q >= 30) {
+                val baos = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, q, baos)
+                val bytes = baos.toByteArray()
+                if (bytes.size.toLong() <= maxBytes) {
+                    FileOutputStream(file).use { it.write(bytes) }
+                    return@withContext path to true
+                }
+                q -= 5
+            }
+            // Write best effort even if still > maxBytes (last attempt with lowest quality)
+            val baosFinal = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 30, baosFinal)
+            val finalBytes = baosFinal.toByteArray()
+            FileOutputStream(file).use { it.write(finalBytes) }
+            return@withContext path to (finalBytes.size.toLong() <= maxBytes)
+        }
+
+        // Could not reduce sufficiently
+        return@withContext path to false
+    } catch (e: Exception) {
+        Log.e("PlatformCameraCapture", "Compression error: ${e.message}")
+        null
+    }
+}
+
+private suspend fun compressImageFileIfNeededExperimental(
+    path: String,
+    maxBytes: Long
+): Pair<String, Boolean>? = withContext(Dispatchers.IO) {
+    try {
+        val file = File(path)
+        if (!file.exists()) return@withContext null
+        if (file.length() <= maxBytes) return@withContext path to false
+
+        // --- Step 1: Peek at dimensions without loading pixels ---
+        val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, boundsOpts)
+        val rawWidth = boundsOpts.outWidth
+        val rawHeight = boundsOpts.outHeight
+        if (rawWidth <= 0 || rawHeight <= 0) return@withContext null
+
+        // --- Step 2: Calculate inSampleSize to pre-downscale on decode ---
+        val sampleSize = calculateSampleSize(rawWidth, rawHeight, maxBytes)
+
+        // --- Step 3: Decode with RGB_565 (no alpha needed for camera) + sampling ---
+        val decodeOpts = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        var bitmap = BitmapFactory.decodeFile(path, decodeOpts) ?: return@withContext null
+
+        // --- Step 4: EXIF rotation ---
+        try {
+            val exif = ExifInterface(file.absolutePath)
+            val orientation = exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_NORMAL
+            )
+            val degrees = when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90  -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+            if (degrees != 0f) {
+                val matrix = Matrix().apply { postRotate(degrees) }
+                val rotated = Bitmap.createBitmap(
+                    bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+                )
+                bitmap.recycle()
+                bitmap = rotated
+                try {
+                    exif.setAttribute(
+                        ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.ORIENTATION_NORMAL.toString()
+                    )
+                    exif.saveAttributes()
+                } catch (_: Exception) { /* non-fatal */ }
+            }
+        } catch (e: Exception) {
+            Log.w("PlatformCameraCapture", "EXIF handling failed, continuing: ${e.message}")
+        }
+
+        // --- Step 5: Binary search on quality (reusing single buffer) ---
+        val reusedBaos = ByteArrayOutputStream(maxBytes.toInt().coerceAtLeast(64 * 1024))
+        val bestBytes = binarySearchQuality(bitmap, maxBytes, reusedBaos, loQuality = 10, hiQuality = 95)
+
+        if (bestBytes != null) {
+            FileOutputStream(file).use { it.write(bestBytes) }
+            bitmap.recycle()
+            return@withContext path to true
+        }
+
+        // --- Step 6: Quality alone wasn't enough — scale bitmap dimensions down ---
+        // Use last compressed size (at quality=10) to estimate the needed scale ratio
+        reusedBaos.reset()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 10, reusedBaos)
+        val sizeAtMinQuality = reusedBaos.size().toLong()
+
+        val ratio = kotlin.math.sqrt(maxBytes.toDouble() / sizeAtMinQuality.toDouble())
+        if (ratio < 0.95) {
+            val newWidth  = (bitmap.width  * ratio).toInt().coerceAtLeast(1)
+            val newHeight = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+            val scaledBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+            bitmap.recycle()
+            bitmap = scaledBitmap
+
+            // Binary search again on the scaled-down bitmap
+            val scaledBest = binarySearchQuality(bitmap, maxBytes, reusedBaos, loQuality = 10, hiQuality = 85)
+            if (scaledBest != null) {
+                FileOutputStream(file).use { it.write(scaledBest) }
+                bitmap.recycle()
+                return@withContext path to true
+            }
+        }
+
+        // --- Step 7: Best-effort final write (may still exceed maxBytes) ---
+        reusedBaos.reset()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 10, reusedBaos)
+        val finalBytes = reusedBaos.toByteArray()
+        FileOutputStream(file).use { it.write(finalBytes) }
+        bitmap.recycle()
+        return@withContext path to (finalBytes.size.toLong() <= maxBytes)
+
+    } catch (e: Exception) {
+        Log.e("PlatformCameraCapture", "Compression error: ${e.message}")
+        null
+    }
+}
+
+/**
+ * Binary search for the highest JPEG quality that fits within [maxBytes].
+ * Reuses [baos] buffer across iterations to avoid repeated allocations.
+ * Returns the compressed bytes if found, null if even [loQuality] exceeds [maxBytes].
+ */
+private fun binarySearchQuality(
+    bitmap: Bitmap,
+    maxBytes: Long,
+    baos: ByteArrayOutputStream,
+    loQuality: Int,
+    hiQuality: Int
+): ByteArray? {
+    var lo = loQuality
+    var hi = hiQuality
+    var bestBytes: ByteArray? = null
+
+    while (lo <= hi) {
+        val mid = (lo + hi) / 2
+        baos.reset()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, mid, baos)
+        if (baos.size().toLong() <= maxBytes) {
+            bestBytes = baos.toByteArray()  // save best so far
+            lo = mid + 1                    // try higher quality
+        } else {
+            hi = mid - 1                    // too big, reduce
+        }
+    }
+    return bestBytes
+}
+
+/**
+ * Estimates a safe BitmapFactory inSampleSize so the decoded bitmap's
+ * pixel count is in a reasonable range for the target file size.
+ * Always returns a power of 2 (as required by BitmapFactory).
+ */
+private fun calculateSampleSize(width: Int, height: Int, maxBytes: Long): Int {
+    // Rough estimate: each pixel in a JPEG contributes ~0.3–0.5 bytes at moderate quality.
+    // We target ~3x the maxBytes in pixel count as a safe pre-scale budget.
+    val pixelCount = width.toLong() * height
+    val targetPixels = maxBytes * 3
+    var sample = 1
+    while (pixelCount / (sample.toLong() * sample) > targetPixels) {
+        sample *= 2
+    }
+    return sample
+}
+
+@Composable
+fun LoadingDialog(
+    title: String="Kompresi File",
+    message: String="Harap tunggu, sedang proses kompresi file...",
+    onDismiss: () -> Unit ={}
+){
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {}, // Kosongkan karena ini loading state
+        modifier = Modifier.width(IntrinsicSize.Min), // Mengikuti lebar konten terkecil
+        shape = MaterialTheme.shapes.extraLarge,
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 4.dp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (title.isNotEmpty()) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                if (message.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    )
+
+}
