@@ -1,0 +1,115 @@
+SIMLAKSANA
+POWER LOGIC
+SYTELINE
+REPORTING SERVICE
+
+-aDMINISTRASI PERSONALIA & data PERSONALIA ITU HRD FULL DIPAKAI 100%
+PERSONALIA:
+ABSENSI,
+IJIN KARYAWAN,
+LAPORAN ABSEIB KARYAWAN,
+SHIFT LAKSANA
+
+MODUL QC
+yang dipakai reward borong
+
+modul Marketing hamper semua tepakai
+yang terpenting penawaran reparasi
+detail spesifikasi bus yang akan dikerjakan
+
+user yang melakukan penawaran melakukan spesifikasi yang diingikan
+
+ppic standar 3.0
+
+Prosedur
+- penawaran
+- TOP term of pay
+- approval SM
+- edit order plan
+- approval ppic
+- approval dp
+- approval perjanjian
+- add order
+- update order spek
+
+Monitoring order
+ECN
+Material Issue*
+rubah bentuk - sales
+customer order - perhitungan poin
+
+
+POWER LOGIC 
+finnacnce accoitin gk kepakai
+Production payroll inventory masih aktif
+yan gpeting job order - surat perintah kerja diisi oleh PPIC
+barcode dipakai untuk menngisi check list
+hasil inputan dilanjutkan ke produksi untuk pembayaran opsi
+
+Permit dan authorize
+inputan dari superviser jika ada karyawan lembur
+butuh approval kabag
+overtime kuota perpostion 
+kuota dalam jam
+diinput oleh MIC
+
+Permit = ijin
+JObpicklist
+untuk kebutuhan keluaran Gudang
+
+
+PRODUCTION SCHEDULE
+perintah membuat komponen
+
+akan di laporkan ke production worck centre process
+setiap proses akan ada laporannya
+
+Payroll -oleh HRD
+proses gaji karyawan borong
+akan memengaruhi ke payment process
+
+
+INVETORY bis dignore dulu
+
+===================================================
+SyteLine ERP LAKSANA
+INVETORY PURCAHSING
+CUSTOMER ORDER
+JOB ORDER
+ACCOUNTING PAYABLE
+ACCOUTNING RECIVABLE, DLL
+
+IT BIASANYA PAKAI
+SESEION MANAGER
+
+
+REPOSRTING SERVICE
+ALAT BANTU OUTPUT DARI SISTEM
+
+==================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

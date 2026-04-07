@@ -1,0 +1,10 @@
+1. Membuat Shared modul :
+	- new module,
+	- isi nama dan package modul, 
+	- Finish
+
+2. Membuat Class pada Shared modul dikenali oleh main file
+	- masuk gradle main file,
+	- tambahkan dependency di commonMain"implementation(projects.shared)"
+	- sycn ulang gradle
+

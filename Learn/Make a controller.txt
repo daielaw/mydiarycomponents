@@ -1,0 +1,46 @@
+1. Add Controller, Api Controller - Empty (default)
+
+2. 
+=============================================================================
+ [Route("api/[controller]")]
+ [ApiController]
+ public class BookController : ControllerBase
+ {
+     static private List<Book> books = new List<Book> {
+         new Book {
+                 Id = 1,
+                 Title = "Title 1",
+                 Author = "JK Rolling",
+                 PublicationYear = "2025",
+                 Price = "$24"
+             },
+          new Book {
+                 Id = 1,
+                 Title = "Title 2",
+                 Author = "Hein Rolling",
+                 PublicationYear = "2025",
+                 Price = "$24"
+             },
+           new Book {
+                 Id = 1,
+                 Title = "Title 3",
+                 Author = "Thomas Rolling",
+                 PublicationYear = "2025",
+                 Price = "$24"
+             },
+            new Book {
+                 Id = 1,
+                 Title = "Title 4",
+                 Author = "Stark Rolling",
+                 PublicationYear = "2025",
+                 Price = "$24"
+             }
+     };
+     [HttpGet]
+     public ActionResult<List<Book>> GetBooks()
+     {
+         return Ok(books);
+     }
+
+ }
+=============================================================================

@@ -1,0 +1,374 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
+import org.gradle.api.tasks.Copy
+
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
+    // Align Kotlin serialization plugin with the versions catalog
+    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.googleGmsGoogleServices)
+}
+
+kotlin {
+    // Use Java 11 toolchain for all JVM compilations
+    jvmToolchain(17)
+    androidTarget {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
+    }
+    
+    listOf(
+        iosX64(),
+        iosArm64(),
+        iosSimulatorArm64()
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "ComposeApp"
+            isStatic = true
+            linkerOpts("-framework", "AVFAudio")
+        }
+    }
+    
+    jvm("desktop") {
+        // JVM Desktop target uses the global toolchain (Java 11)
+        // Additional desktop-specific options can be configured here if needed.
+    }
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        outputModuleName.set("composeApp")
+        browser {
+            val rootDirPath = project.rootDir.path
+            val projectDirPath = project.projectDir.path
+            commonWebpackConfig {
+                outputFileName = "composeApp.js"
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
+                    port = 8080
+                    static = (static ?: mutableListOf()).apply {
+                        // Serve sources to debug inside browser
+                        add(rootDirPath)
+                        add(projectDirPath)
+                    }
+                }
+            }
+        }
+        binaries.executable()
+    }
+
+
+    js(IR) {
+        outputModuleName.set("composeApp")
+        browser {
+            val rootDirPath = project.rootDir.path
+            val projectDirPath = project.projectDir.path
+            commonWebpackConfig {
+                outputFileName = "composeApp.js"
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
+                    port = 3000
+                    static = (static ?: mutableListOf()).apply {
+                        // Serve sources to debug inside browser
+                        add(rootDirPath)
+                        add(projectDirPath)
+                    }
+                }
+            }
+        }
+        binaries.executable()
+    }
+
+
+    sourceSets {
+        val desktopMain by getting
+        
+        androidMain.dependencies {
+            implementation(compose.preview)
+            implementation(libs.androidx.activity.compose)
+
+            implementation(libs.ktor.ktor.client.android)
+            implementation(libs.ktor.client.okhttp)
+
+            // Add the security crypto library for EncryptedSharedPreferences
+            implementation(libs.androidx.security.crypto)
+
+            implementation(libs.koin.android)
+
+            implementation(libs.android.driver)
+
+            implementation(libs.firebase.messaging)
+
+            // Accompanist permissions is Android-only, keep it here (not in commonMain)
+            implementation(libs.accompanist.permissions)
+        }
+        commonMain.dependencies {
+
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
+            implementation(compose.ui)
+            implementation(compose.components.resources)
+            implementation(compose.components.uiToolingPreview)
+            implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.runtimeCompose)
+
+            // Skiko (pinned to version compatible with Compose 1.8.2)
+            implementation(libs.skiko)
+
+            // Ktor dependencies
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.ktor.client.content.negotiation)
+            implementation(libs.ktor.client.logging)
+            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.auth)
+
+
+            // Navigation dependencies
+            implementation(libs.navigation.compose)
+
+            //Coil dependencies
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+
+            // Koin dependencies
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
+
+            implementation(libs.multiplatform.settings.test)
+
+            implementation(libs.kotlinx.datetime)
+
+            implementation(libs.primitive.adapters)
+
+            implementation(projects.core)
+            implementation(projects.commonData)
+            implementation(projects.andon)
+            implementation(projects.checkSheet)
+            implementation(projects.masterCheckList)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
+
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+
+            implementation(libs.native.driver)
+        }
+
+        desktopMain.dependencies {
+            implementation(compose.desktop.currentOs)
+
+            // Use only one Ktor client for desktop - Java client is recommended for desktop
+            implementation(libs.kotlinx.coroutinesSwing)
+
+            implementation(libs.ktor.client.java)
+            // Webcam capture library
+            implementation(libs.webcam.capture)
+            implementation(libs.multiplatform.settings)
+        }
+
+        jsMain.dependencies {
+            implementation(libs.ktor.ktor.client.js)
+
+            implementation(libs.web.worker.driver)
+            implementation(devNpm("copy-webpack-plugin", "9.1.0"))
+            implementation(npm("@js-joda/timezone", "2.22.0"))
+            // Polyfill for Node's 'os' module required by some dependencies when bundling for the browser
+            implementation(devNpm("os-browserify", "0.3.0"))
+            // sql.js is required to provide the wasm asset referenced in webpack config
+            implementation(npm("sql.js", "1.8.0"))
+        }
+
+        // Ensure WASM build has the same webpack-related dependencies
+        wasmJsMain.dependencies {
+            implementation(devNpm("copy-webpack-plugin", "9.1.0"))
+            implementation(devNpm("os-browserify", "0.3.0"))
+            implementation(npm("sql.js", "1.8.0"))
+        }
+    }
+}
+
+android {
+    namespace = "com.laksanabus.neo"
+    compileSdk = libs.versions.compileSdk.get().toInt()
+
+    defaultConfig {
+        // Read app config values from the version catalog (gradle/libs.versions.toml)
+        applicationId = libs.versions.applicationId.get()
+        minSdk = libs.versions.minSdk.get().toInt()
+        targetSdk = libs.versions.targetSdk.get().toInt()
+        versionCode = libs.versions.versionCode.get().toInt()
+        versionName = libs.versions.versionName.get()
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+
+            // Enables resource shrinking.
+            isShrinkResources = true
+
+
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+
+        }
+        getByName("debug") {
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    // Make a generated res folder available so we can copy the launcher logo into resources at build time
+    sourceSets {
+        getByName("main") {
+            res.srcDir(layout.buildDirectory.dir("generated/res/logo"))
+        }
+    }
+}
+
+// Copy the common logo into Android res so it can be referenced by @drawable/logo_laksana
+val copyLauncherLogoToRes by tasks.registering(Copy::class) {
+    val src = file("${projectDir}/src/commonMain/composeResources/drawable/logo_laksana_50.png")
+    from(src)
+    into(layout.buildDirectory.dir("generated/res/logo/drawable").get().asFile)
+    // Ensure the file name in res is the expected resource name used by the launcher foreground
+    rename { "logo_laksana.png" }
+    // Only run if source exists
+    onlyIf { src.exists() }
+}
+
+tasks.named("preBuild") {
+    dependsOn(copyLauncherLogoToRes)
+}
+
+// Generate version.properties file for desktop runtime version access
+val versionName = libs.versions.versionName.get()
+val versionCode = libs.versions.versionCode.get()
+val generateDesktopVersionProperties by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/desktop/resources")
+    outputs.dir(outputDir)
+    inputs.property("versionName", versionName)
+    inputs.property("versionCode", versionCode)
+
+    doLast {
+        val versionFile = outputDir.get().file("version.properties").asFile
+        versionFile.parentFile.mkdirs()
+        versionFile.writeText("""
+            |versionName=${inputs.properties["versionName"]}
+            |versionCode=${inputs.properties["versionCode"]}
+        """.trimMargin())
+    }
+}
+
+// Make desktop source set depend on the generated properties
+kotlin.sourceSets.getByName("desktopMain") {
+    resources.srcDir(layout.buildDirectory.dir("generated/desktop/resources"))
+}
+
+// Ensure version properties are generated before desktop resources are compiled
+tasks.matching { it.name == "desktopProcessResources" }.configureEach {
+    dependsOn(generateDesktopVersionProperties)
+}
+
+// Also ensure it runs before desktop source compilation
+tasks.matching { it.name.contains("compileKotlinDesktop") }.configureEach {
+    dependsOn(generateDesktopVersionProperties)
+}
+
+// Generate version.js file for WASM runtime version access
+val generateWasmVersionJs by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/wasm/resources")
+    outputs.dir(outputDir)
+    inputs.property("versionName", versionName)
+    inputs.property("versionCode", versionCode)
+
+    doLast {
+        val versionFile = outputDir.get().file("version.js").asFile
+        versionFile.parentFile.mkdirs()
+        versionFile.writeText("""
+            |// Auto-generated version info for WASM
+            |export const appVersion = {
+            |    versionName: "${inputs.properties["versionName"]}",
+            |    versionCode: "${inputs.properties["versionCode"]}"
+            |};
+            |
+            |if (typeof window !== 'undefined') {
+            |    window.appVersion = appVersion;
+            |}
+        """.trimMargin())
+    }
+}
+
+// Make WASM source set depend on the generated version file
+kotlin.sourceSets.getByName("wasmJsMain") {
+    resources.srcDir(layout.buildDirectory.dir("generated/wasm/resources"))
+}
+
+// Ensure version file is generated before WASM resources are compiled
+tasks.matching { it.name == "wasmJsProcessResources" }.configureEach {
+    dependsOn(generateWasmVersionJs)
+}
+
+// Also ensure it runs before WASM source compilation
+tasks.matching { it.name.contains("compileKotlinWasmJs") }.configureEach {
+    dependsOn(generateWasmVersionJs)
+}
+
+dependencies {
+
+    debugImplementation(compose.uiTooling)
+}
+
+compose.desktop {
+    application {
+        mainClass = "com.laksanabus.neo.MainKt"
+
+        // Add JVM arguments to include required modules and fix HTTP client issues
+        jvmArgs(
+            "--add-modules", "java.net.http",
+            "--add-modules", "java.desktop",
+            "--add-modules", "java.base",
+            "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
+            "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED"
+        )
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "com.laksanabus.neo"
+            packageVersion = libs.versions.versionName.get()
+
+            // Specify modules to include in the runtime
+            modules(
+                "java.compiler",
+                "java.desktop",
+                "java.instrument",
+                "java.management",
+                "java.net.http",
+                "java.prefs",
+                "java.security.jgss",
+                "java.sql",
+                "jdk.unsupported"
+            )
+        }
+    }
+}

@@ -1,0 +1,88 @@
+1. siapkan realm dan user pada keycloak
+2. buat model keycloak
+    public class UserKeyCloak
+    {
+        /*
+         * 
+            "scope": "profile email",   
+
+            "email_verified": false,
+
+            "name": "tester tester",
+
+            "preferred_username": "tester",
+
+            "given_name": "tester",
+
+            "family_name": "tester",
+
+            "email": "tester@tester.com"
+         */
+
+        public string scope { get; set; }
+        public bool email_verified { get; set; }
+        public string name { get; set; }
+        public string preferred_username { get; set; }
+        public string given_name { get; set; }
+        public string family_name { get; set; }
+        public string email { get; set; }
+    }
+
+3. tambahkan beberapa package seperti :
+	- JwtBearer
+
+4. tambahkan kode untuk bearenyanya
+
+	var keycloakConfig = builder.Configuration.GetSection("Keycloak");
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = keycloakConfig["KeycloakUrl"];
+        options.RequireHttpsMetadata = keycloakConfig.GetValue<bool>("RequireHttpsMetadata");
+        options.Audience = keycloakConfig["Audience"];
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidAudience = "account",
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("Auth failed: " + context.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("Token valid");
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+5. jangan lupa tambahkan environment pada appsetting
+"Keycloak": {
+  "KeycloakUrl": "http://localhost:8080/realms/library-realm",
+  "ClientId": "auth-gate-library",
+  "Audience": "account",
+  "RequireHttpsMetadata": false
+}
+
+6. endpoint untuk mendapatkan access token
+- POST
+http://localhost:8080/realms/(nama realm)/protocol/openid-connect/token
+
+client_id:auth-gate-library
+client_secret:***
+grant_type:password
+username:admin_one
+password:admin
+
+- GET
+https://localhost:7211/api/Books -> [AllowAnonymous]
+https://localhost:7211/api/Books/20 -> dengan [authorize]

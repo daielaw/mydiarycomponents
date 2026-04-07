@@ -1,0 +1,96 @@
+[versions]
+
+# Application / Android configuration values centralized here
+applicationId = "com.laksanabus.neo"
+minSdk = "24"
+targetSdk = "36"
+compileSdk = "36"
+versionCode = "8"
+versionName = "1.3.3"
+
+agp = "8.13.1"
+androidDriver = "2.1.0"
+androidx-activity = "1.11.0"
+androidx-lifecycle = "2.9.5"
+androidx-testExt = "1.3.0"
+coilCompose = "3.3.0"
+composeHotReload = "1.0.0-rc02"
+composeMultiplatform = "1.9.2"
+koinCore = "4.1.1"
+kotlin = "2.2.21"
+kotlinx-coroutines = "1.10.2"
+kotlinxDatetime = "0.7.1"
+ktorClientAndroid = "3.3.1"
+ktorClientContentNegotiation = "3.3.1"
+ktorClient = "3.3.1"
+ktorClientJs = "3.3.1"
+multiplatformSettingsTest = "1.3.0"
+navigationCompose = "2.9.1"
+skiko = "0.9.4.2"
+googleGmsGoogleServices = "4.4.4"
+firebaseMessaging = "25.0.1"
+kotlinStdlib = "2.2.21"
+runner = "1.7.0"
+core = "1.7.0"
+androidxSecurityCrypto = "1.1.0"
+accompanistPermissions = "0.37.3"
+webcamCapture = "0.3.12"
+multiplatformSettings = "1.3.0"
+vosk = "0.3.45"
+
+
+
+[libraries]
+android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "androidDriver" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coilCompose" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koinCore" }
+koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koinCore" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koinCore" }
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koinCore" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+androidx-testExt-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-testExt" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
+androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktorClientContentNegotiation" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktorClientContentNegotiation" }
+ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktorClientContentNegotiation" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktorClient" }
+ktor-ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktorClientAndroid" }
+ktor-ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktorClientContentNegotiation" }
+ktor-ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktorClientJs" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktorClient" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktorClient" }
+multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatformSettingsTest" }
+native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "androidDriver" }
+navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+primitive-adapters = { module = "app.cash.sqldelight:primitive-adapters", version.ref = "androidDriver" }
+web-worker-driver = { module = "app.cash.sqldelight:web-worker-driver", version.ref = "androidDriver" }
+skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "skiko" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlinStdlib" }
+androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
+androidx-core = { group = "androidx.test", name = "core", version.ref = "core" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktorClient" }
+ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktorClient" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidxSecurityCrypto" }
+accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
+webcam-capture = { module = "com.github.sarxos:webcam-capture", version.ref = "webcamCapture" }
+multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatformSettings" }
+vosk = { module = "com.alphacephei:vosk", version.ref = "vosk" }
+
+[plugins]
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
+composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+googleGmsGoogleServices = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
+androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+androidLint = { id = "com.android.lint", version.ref = "agp" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

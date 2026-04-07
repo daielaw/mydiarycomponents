@@ -1,0 +1,17 @@
+1. package :
+	- Scalar.AspNetCore
+2. add some code
+    app.MapScalarApiReference();
+
+===========================================
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference();
+    app.MapOpenApi();
+}
+===========================================
+
+3. go to https://localhost:7163/scalar/
+
+4. Done

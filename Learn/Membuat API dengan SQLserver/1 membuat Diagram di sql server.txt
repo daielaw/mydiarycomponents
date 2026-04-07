@@ -1,0 +1,43 @@
+1. Koneksi SQL Server dengan SQL Server Authentication
+L1!
+
+2. Buat Database seperti biasa pada umumnya missal LatihanDb
+
+3. Buat beberapa table yang diperlukan untuk database tersebut, sebagai contoh untuk kebutuhan perpustakaan:
+	- Books : id, category_id,  title, author, publisher, year, page_sum, total_copies, enable_copies, created_at, created_by, modified_at, modified_by
+	- categoris : id, category_name, created_at, created_by, modified_at, modified_by
+	- members : id, name, email, phone, address, join_date, created_at, created_by, modified_at, modified_by
+	- loans : id, book_id, member_id, load_date, due_date, return_date, status_id, created_at, created_by, modified_at, modified_by
+	- loan_statuses : id, status_name, created_at, created_by, modified_at, modified_by
+
+4. Membuat API
+ - Siapkan beberapa Package: 
+	- scalar
+	- EFC sqlServer
+	- EFC Tools
+	- EFC Web Code generation design
+
+ - untuk pemakaian scalar tambahkan "app.MapScalarApiReference()" di Environment Deployment
+
+ - Buat class item baru untuk setiap tabel bisa pakai EF Core untuk cara cepat
+
+ - Tambahkan code berikut di program.cs, juga tambahkan variable ke environment : Server=DANIELPC;Database=LatihanDb;user=sa;password=***********;TrustServerCertificate=true;MultipleActiveResultSets=True
+
+ - LatihanDbContext: DB context sesuaikan dengan nama models yang ter-generate
+
+	======================================================
+	// Add services to the container.
+	builder.Services.AddDbContext<LatihanDbContext>(options => options.UseSqlServer(Environment.GetEnvironmentVariable("LatihanDb")));
+
+	builder.Services.AddControllers();
+	======================================================
+
+ - Buat Controller untuk class-class item tersebut
+
+ - Edit launcsetting.json yang ada dengan menambahkan "
+	"launchBrowser": true,
+	"launchUrl": "https://localhost:7211/scalar/",
+	"
+
+ - Restart PC untuk aktivasi environment yang dibuat
+

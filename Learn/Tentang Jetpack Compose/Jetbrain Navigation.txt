@@ -1,0 +1,64 @@
+# ref 
+https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-multiplatform-resources-usage.html
+
+Navigasi pada Jetbrain compose itu memakai konsep stak dari Bawah ke atas,
+sehingga jika ingin melakukan perpindahan navigasi sompose menyimpan setiap rute yang di dalam stak
+Navigasi bisa diberikan uri dengan deep link juga
+
+__________________________________________________________________________
+kotlin {
+    // ...
+    sourceSets {
+        // ...
+        commonMain.dependencies {
+            // ...
+            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0")
+        }
+        // ...
+    }
+}
+__________________________________________________________________________
+
+Membuat rute tujuan navigasi bisa memakai data class
+
+"NavController" menjadi komponen Utama untuk mengatur perpindahan.
+Lebih baik hirarkinya ditempat tinggi supaya bisa dipakai di semua bagian.
+"NavController" juga menyimpan back stack untuk kebutuhan navigasi
+
+"NavHost" dipakai untuk mendefinisikan semua rute dalam navigasi
+
+__________________________________________________________________________
+// Creates routes
+@Serializable
+object Profile
+@Serializable
+object FriendsList
+
+// Creates the NavController
+val navController = rememberNavController()
+
+// Creates the NavHost with the navigation graph consisting of supplied destinations
+NavHost(navController = navController, startDestination = Profile) {
+    composable<Profile> { ProfileScreen( /* ... */ ) }
+    composable<FriendsList> { FriendsListScreen( /* ... */ ) }
+    // You can add more destinations similarly
+}
+
+__________________________________________________________________________
+
+# Deeplink
+deeplink salah satu fungsinya juga bisa untuk fungsi login dengan pihak ke 3
+Deep link bisa digunakan untuk membantu proses login dari pihak ketiga, terutama dalam konteks aplikasi mobile atau web yang terintegrasi dengan layanan eksternal seperti Google, Facebook, atau sistem otentikasi lainnya.
+
+Berikut penjelasan singkatnya:
+📌 Fungsi Deep Link dalam Login Pihak Ketiga
+
+    Navigasi langsung ke halaman login tertentu: Deep link bisa membawa pengguna langsung ke halaman login pihak ketiga tanpa harus melalui banyak langkah.
+
+    Menangani callback setelah login: Setelah pengguna login di aplikasi pihak ketiga, deep link bisa digunakan sebagai redirect URI untuk membawa mereka kembali ke aplikasi utama dengan status login yang sudah berhasil.
+
+    Mempermudah integrasi OAuth atau SSO (Single Sign-On): Deep link sering digunakan sebagai bagian dari alur otentikasi OAuth, di mana aplikasi menerima token dari pihak ketiga melalui deep link.
+
+🧠 Contoh Kasus
+
+Misalnya, sebuah aplikasi mobile menggunakan Google Sign-In. Setelah pengguna memilih login dengan Google, mereka diarahkan ke aplikasi Google. Setelah login berhasil, Google akan mengarahkan pengguna kembali ke aplikasi utama melalui deep link yang sudah ditentukan sebelumnya.

@@ -1,0 +1,92 @@
+1. Buat Realm baru : LaksanaNeoRealm
+
+2. Buat Client baru : LaksanaNeoWebAPI , setting Grant access saja dulu
+
+3. Buat Client Scope baru : LaksanaNeoWebAPIScope, centang include token
+
+4. Menambah mapper di token
+ -mapper audience
+Masuk Client scopes -> ke namascope (LaksanaNeoWebAPIScope) -> add mapper by configuration -> pilih Audience-> beri nama : LaksanaNeoWebAPIAudience
+
+- mapper roles
+Masuk ke client scopes -> ke roles (di halaman lain jika gk ada di list) -> berikan nama roles
+
+* Sebelum menampahkan token ini tambahkan dahulu di Realm Setting -> User profile -> create attribute -> berikan nama dan permission untuk disesuaikan
+
+ - mapper nik, departement, mobile phone
+Masuk Client scopes -> ke namascope (LaksanaNeoWebAPIScope) -> add mapper by configuration-> pilih user attribute -> tambahkan nik, departement, dan mobile phone
+
+5. Buat Roles Realm dengan nama Administrator
+Realm roles -> create role
+
+6. Tambahkan Roles Realm lagi misal LKSUser
+Realm roles -> create role
+
+
+9. Buat user baru 
+Users -> add user,
+dan assign role tiap user Administrator /LKSUser
+
+10. pengecekan
+- POST
+http://localhost:8080/realms/LaksanaNeoRealm/protocol/openid-connect/token
+client_id:LaksanaNeoWebAPI
+//client_secret:f3rh2qcslsBVZ7MSCIIBRm4DixrdR11u
+grant_type:password
+username:daniel.laksana
+password:daniel
+scope:LaksanaNeoWebAPIScope
+
+apakah sesuai dengan objek:
+{
+  "exp": 1759908398,
+  "iat": 1759908098,
+  "jti": "onrtro:bb1cae7f-eb89-71f4-98ca-a0af070d3a1b",
+  "iss": "http://localhost:8080/realms/LaksanaNeoRealm",
+  "aud": [
+    "LaksanaNeoWebAPI",
+    "account"
+  ],
+  "sub": "22e3ccd0-a739-44c7-b10d-0b7a058e4b01",
+  "typ": "Bearer",
+  "azp": "LaksanaNeoWebAPI",
+  "sid": "75651e2d-d295-9dee-0cc6-64d4ecaf85fa",
+  "acr": "1",
+  "allowed-origins": [
+    "/*"
+  ],
+  "resource_access": {
+    "account": {
+      "roles": [
+        "manage-account",
+        "manage-account-links",
+        "view-profile"
+      ]
+    }
+  },
+  "scope": "profile LaksanaNeoWebAPIScope email",
+  "nik": "10016039",
+  "departement": "IT",
+  "email_verified": true,
+  "mobilePhone": "082123123123",
+  "roles": [
+    "LKSUser",
+    "offline_access",
+    "default-roles-laksananeorealm",
+    "uma_authorization"
+  ],
+  "name": "daniel kurniawan",
+  "preferred_username": "daniel.laksana",
+  "given_name": "daniel",
+  "family_name": "kurniawan",
+  "email": "daniel.laksana@laksananeo"
+}
+
+
+
+ 
+
+
+
+
+

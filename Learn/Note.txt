@@ -1,0 +1,2 @@
+#1 Model pada package dipakai untuk menyimpan model untuk masukan dari user
+#2 Entity pada package dipakai untuk menyimpan model untuk masukkan ke database

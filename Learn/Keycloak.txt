@@ -1,0 +1,148 @@
+1. make realm
+
+2. buat Client ID, misalkan 
+	client id : myclient
+	valid redirect URIs : http://localhost:*
+	web origins : http://localhost:*
+
+	Client authentication : on
+	Authebtication flow : standard flow, direct access grants
+
+3. buat users
+
+====================================================================
+Set up di Postman 
+1. pakai uri : http://localhost:8080/realms/(nama realm)/protocol/openid-connect/token 
+2. x-www-form-urlencoded
+3. key-value :
+	client_id:my-api-client
+	client_secret:tZMsJu4tlJVMUOvYfdqa1S5LwmMZK3eV
+	grant_type:password
+	username:tester
+	password:tester
+
+====================================================================
+
+Set up di Core web API
+1. buat 3 perubahan yakni
+	- buat class seperti isi token bearer
+	- buat controller untuk kelas tersebut
+	- ubah beberapa code pada Program cs
+- membuatclass seperti pada token, misal
+******************************************************************
+namespace testingOne
+{
+    public class UserKeyCloak
+    {
+        /*
+         * 
+            "scope": "profile email",   
+
+            "email_verified": false,
+
+            "name": "tester tester",
+
+            "preferred_username": "tester",
+
+            "given_name": "tester",
+
+            "family_name": "tester",
+
+            "email": "tester@tester.com"
+         */
+
+        public string scope { get; set; }
+        public bool email_verified { get; set; }
+        public string name { get; set; }
+        public string preferred_username { get; set; }
+        public string given_name { get; set; }
+        public string family_name { get; set; }
+        public string email { get; set; }
+    }
+}
+*********************************************************************
+- membuat controller dari class tersebut
+*********************************************************************
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+
+namespace testingOne.Controllers
+{
+    [Authorize]
+    [Route("api/[controller]")]
+    [ApiController]
+    public class UserKeyCloakController : ControllerBase
+    {
+        [HttpGet("userinfo")]
+        public IActionResult GetUserInfo()
+        {
+            // Extract the token from the header
+            var userClaims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+            return Ok(userClaims);
+        }
+
+        [HttpGet("secret")]
+        public IActionResult GetSecret()
+        {
+            var name = User.FindFirst("preferred_username")?.Value?? User.Identity?.Name?? "Pengguna";
+            return Ok($"Selamat datang di konten rahasia, {name}!");
+        }
+    }
+}
+************************************************************************
+- mengubah beberapa code
+************************************************************************
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = "http://localhost:8080/realms/myrealm1"; // issuer
+        options.Audience = "account"; // sesuai client_id
+        options.RequireHttpsMetadata = false;
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("Auth failed: " + context.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("Token valid");
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Configure the HTTP request pipeline.
+
+app.UseAuthentication();
+
+app.UseAuthorization();
+
+==========================================================================
+4. endpoint untuk mendapatkan access token
+- POST
+http://localhost:8080/realms/(nama realm)/protocol/openid-connect/token
+
+5. end point untuk akses dari programcs
+- GET
+https://localhost:7147/api/UserKeyCloak/secret
+https://localhost:7147/api/UserKeyCloak/userinfo
+
+

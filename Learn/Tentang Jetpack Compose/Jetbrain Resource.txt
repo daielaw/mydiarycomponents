@@ -1,0 +1,31 @@
+KMP memberikan hal special pada library compose-multiplatform-resource untuk akses kode umum seperti gambar, font, dan string lainnya pada aplikasi
+
+# ref
+https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-multiplatform-resources.html
+
+untuk hal tersebut perlu menambahkan kode pada gradle
+____________________________________________________________________
+kotlin {
+    //...
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.components.resources)
+        }
+    }
+}
+
+_____________________________________________________________________
+
+Beberapa aturan yang perlu diperhatikan:
+- file gambar harus di direktori drawable dan support rasterized image (JPEG, PNG,bitmap,WebP) dan vector dengan xml
+- Fonts harus di directory font
+- String harus di direktori value
+- lainnya bisa gunakan direktori files
+
+
+untuk implementasi pemakaian resource :
+import project.composeapp.generated.resources.Res
+import project.composeapp.generated.resources.example_image
+
+# ref
+www.jetbrains.com/help/kotlin-multiplatform-dev/compose-multiplatform-resources-usage.html
