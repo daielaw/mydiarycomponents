@@ -1,0 +1,251 @@
+package com.laksanabus.spkprogressreport.features.components
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModel
+import com.laksanabus.core.features.common.speech.SpeechToTextIconButton
+import com.laksanabus.spkprogressreport.features.spkProgressReport.ui.SpkProgressReportViewModel
+import org.koin.compose.viewmodel.koinViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun <T> SearchableDropdownExperimental(
+    items: List<T>?,
+    selectedItemId: String,
+    onItemSelected: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    enabled: Boolean = true,
+    getItemId: (T) -> String,
+    getItemName: (T) -> String,
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    onClear: (() -> Unit)? = null,
+    onSearchChange: (String) -> Unit,
+    speechLanguageTag: String? = null,
+    speechToTextEnabled: Boolean = true,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Selected text
+    val selectedItemName = remember(selectedItemId, items) {
+        items
+            ?.find { getItemId(it) == selectedItemId }
+            ?.let { getItemName(it) }
+            ?: "Select $label"
+    }
+
+    /** =====================
+     *  MAIN FIELD
+     *  ===================== */
+    Box(modifier = modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = if (isLoading) "Loading $label..." else selectedItemName,
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled && !isLoading,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            trailingIcon = {
+                when {
+                    isLoading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+
+                    selectedItemId.isNotEmpty() && onClear != null -> {
+                        IconButton(onClick = onClear) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear")
+                        }
+                    }
+
+                    else -> {
+                        IconButton(onClick = { expanded = true }) {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Open")
+                        }
+                    }
+                }
+            }
+        )
+
+        Spacer(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    enabled = enabled && !isLoading,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    expanded = true
+                }
+        )
+    }
+
+    /** =====================
+     *  DIALOG SEARCH
+     *  ===================== */
+    if (expanded) {
+        Dialog(
+            onDismissRequest = { expanded = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                tonalElevation = 8.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+
+                    LaunchedEffect(Unit) {
+                        searchFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+
+                    // 🔎 SEARCH FIELD
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = {
+                            searchQuery = it
+                            onSearchChange(it)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(searchFocusRequester),
+                        placeholder = { Text(placeholder) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        },
+                        trailingIcon = {
+                            if (speechLanguageTag != null && speechToTextEnabled) {
+                                SpeechToTextIconButton(
+                                    onSpeechResult = { spoken ->
+                                        searchQuery = spoken
+                                        onSearchChange(spoken)
+                                    },
+                                    enabled = enabled,
+                                    languageTag = speechLanguageTag
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    /** =====================
+                     *  RESULT LIST (API DATA)
+                     *  ===================== */
+                    when {
+                        isLoading -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        items.isNullOrEmpty() -> {
+                            Text(
+                                text = "No $label found",
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 360.dp)
+                            ) {
+                                items(
+                                    items = items,
+                                    key = { getItemId(it) }
+                                ) { item ->
+                                    ListItem(
+                                        headlineContent = {
+                                            Text(
+                                                text = getItemName(item),
+                                                color = if (getItemId(item) == selectedItemId)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.onSurface
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                onItemSelected(getItemId(item))
+                                                expanded = false
+                                                searchQuery = ""
+                                            }
+                                    )
+                                    HorizontalDivider()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+implement
+
+SearchableDropdownExperimental(
+                    items = orderFilterUiList,
+                    selectedItemId = selectedOrderId ?: "",
+                    onItemSelected = { orderId ->
+                        selectedOrderId = orderId
+                        selectedJobName = null // reset job
+                        selectedJobOrder = null
+                        joIdText = ""
+                    },
+                    label = "Order Number",
+                    placeholder = "Search Order Number, ex: K202500000",
+                    getItemId = { it.orderId },
+                    getItemName = { it.orderId },
+                    isLoading = false,
+                    onSearchChange = onSearchChange,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    speechLanguageTag = "id-ID",
+                    speechToTextEnabled = true
+                )
+
+implement
+onSearchChange = { query ->
+                    searchCustomer = query
+                    filterState.manualInputSearch = query
+                    if (query.length >= 4) {
+                        jobOrderViewModel.searchJobOrderItemByOrderNumOrJobName(query)
+                    }
+                },
